@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ライ角チェッカー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #050d05 0%, #0a160a 60%, #080d12 100%);
+  font-family: 'Noto Sans JP', 'Helvetica Neue', sans-serif;
+  color: #e5e7eb;
+}
+header {
+  padding: 16px 20px; border-bottom: 1px solid #111f11;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(12px);
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 10;
+}
+.logo {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: linear-gradient(135deg,#14532d,#4ade80);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; box-shadow: 0 0 14px #4ade8033; flex-shrink: 0;
+}
+.title { font-size: 17px; font-weight: 700; color: #f0fdf4; }
+.subtitle { font-size: 10px; color: #4ade80; letter-spacing: .08em; }
+#resetBtn {
+  margin-left: auto; background: transparent;
+  border: 1px solid #1a2a1a; border-radius: 6px;
+  padding: 6px 12px; color: #4b5563; font-size: 12px;
+  cursor: pointer; display: none; flex-shrink: 0;
+}
+main { max-width: 500px; margin: 0 auto; padding: 20px 16px 60px; }
+
+#uploadZone {
+  border: 2px dashed #1a2e1a; border-radius: 14px;
+  padding: 44px 20px; text-align: center; cursor: pointer;
+  background: rgba(255,255,255,0.015); transition: all .2s; margin-bottom: 20px;
+}
+#uploadZone.drag { border-color: #4ade80; background: rgba(74,222,128,0.04); }
+.upload-icon { font-size: 40px; margin-bottom: 12px; }
+.upload-label { font-size: 15px; font-weight: 600; color: #d1fae5; margin-bottom: 6px; }
+.upload-sub { font-size: 12px; color: #374151; }
+
+.guide { background: rgba(255,255,255,0.02); border: 1px solid #111f11; border-radius: 12px; padding: 16px 18px; }
+.guide-title { font-size: 12px; color: #4ade80; font-weight: 600; margin-bottom: 10px; }
+.guide-item { font-size: 13px; color: #6b7280; padding: 4px 0; display: flex; gap: 8px; }
+
+#progressBox {
+  background: #0a0f0a; border: 1px solid #111f11;
+  border-radius: 14px; padding: 40px 20px; text-align: center; display: none;
+}
+.spin-icon { display: inline-block; font-size: 32px; margin-bottom: 16px; animation: spin 1.5s linear infinite; }
+.bar-wrap { background: #111f11; border-radius: 999px; height: 6px; overflow: hidden; margin: 0 auto 8px; width: 200px; }
+.bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg,#14532d,#4ade80); width: 0%; transition: width .3s; }
+.bar-pct { font-size: 12px; color: #4b5563; }
+
+#frameSelect { display: none; }
+.frame-hint { font-size: 14px; color: #9ca3af; margin-bottom: 14px; text-align: center; }
+#thumbGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 16px; }
+.thumb { border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all .15s; position: relative; }
+.thumb.selected { border-color: #4ade80; box-shadow: 0 0 10px #4ade8055; }
+.thumb img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+.time-badge { position: absolute; bottom: 3px; right: 4px; font-size: 9px; color: #9ca3af; background: rgba(0,0,0,.6); border-radius: 3px; padding: 1px 4px; }
+.check-mark { position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; border-radius: 50%; background: #4ade80; display: none; align-items: center; justify-content: center; font-size: 11px; color: #000; }
+.thumb.selected .check-mark { display: flex; }
+#selectedPreview { background: #0a0f0a; border: 1px solid #1a2a1a; border-radius: 10px; overflow: hidden; margin-bottom: 16px; display: none; }
+.preview-label { font-size: 11px; color: #4b5563; padding: 8px 12px; }
+#previewImg { width: 100%; display: block; }
+
+.btn-primary {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg,#14532d,#16a34a);
+  border: none; border-radius: 12px; color: #f0fdf4;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(22,163,74,.25); transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary:disabled { background: #111f11; color: #374151; cursor: not-allowed; box-shadow: none; }
+
+.error-box {
+  background: #1c0a0a; border: 1px solid #7f1d1d;
+  border-radius: 10px; padding: 14px;
+  color: #fca5a5; font-size: 13px; margin-bottom: 16px; display: none;
+}
+
+#resultBox { display: none; }
+.result-card { background: #0a0f0a; border: 1px solid #111f11; border-radius: 16px; overflow: hidden; }
+.result-header { padding: 20px; border-bottom: 1px solid #111f11; }
+.result-sub { font-size: 12px; color: #4b5563; margin-bottom: 4px; }
+.result-title { font-size: 24px; font-weight: 800; }
+#angleVisual { display: flex; flex-direction: column; align-items: center; padding: 24px 0 12px; }
+.visual-wrap { position: relative; width: 200px; height: 80px; }
+.ground-line { position: absolute; bottom: 16px; left: 0; right: 0; height: 2px; background: #374151; }
+.ground-lbl { position: absolute; bottom: 2px; right: 0; font-size: 10px; color: #4b5563; }
+.sole-wrap { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%) rotate(0deg); transform-origin: 50% 100%; transition: transform .7s cubic-bezier(.34,1.56,.64,1); }
+.sole-bar { width: 90px; height: 10px; border-radius: 2px 5px 5px 2px; position: relative; }
+.dot { position: absolute; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; border-radius: 50%; background: #1f2937; }
+.dot-toe { right: -5px; }
+.dot-heel { left: -5px; }
+.visual-labels { display: flex; gap: 24px; font-size: 11px; color: #4b5563; margin-top: 4px; }
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #111f11; border-top: 1px solid #111f11; border-bottom: 1px solid #111f11; }
+.metric { background: #0a0f0a; padding: 14px 18px; }
+.metric-label { font-size: 11px; color: #374151; margin-bottom: 4px; }
+.metric-value { font-size: 22px; font-weight: 700; color: #e5e7eb; }
+.assessment { padding: 18px 20px; }
+.assessment-lbl { font-size: 11px; color: #374151; letter-spacing: .08em; margin-bottom: 8px; }
+.assessment-text { font-size: 14px; color: #d1d5db; line-height: 1.75; margin-bottom: 14px; }
+.advice-box { background: rgba(74,222,128,.05); border: 1px solid rgba(74,222,128,.12); border-radius: 8px; padding: 12px 14px; }
+.advice-lbl { font-size: 11px; color: #4ade80; margin-bottom: 4px; }
+.advice-text { font-size: 13px; color: #a7f3d0; line-height: 1.65; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⛳</div>
+  <div>
+    <div class="title">ライ角チェッカー</div>
+    <div class="subtitle">LIE ANGLE ANALYZER</div>
+  </div>
+  <button id="resetBtn" onclick="doReset()">やり直す</button>
+</header>
+
+<main>
+  <div id="uploadSection">
+    <div id="uploadZone">
+      <input type="file" id="fileInput" accept="video/*" style="display:none">
+      <div class="upload-icon">🎥</div>
+      <div class="upload-label">動画をアップロード</div>
+      <div class="upload-sub">MP4 / MOV / AVI など</div>
+    </div>
+    <div id="uploadError" class="error-box"></div>
+    <div class="guide">
+      <div class="guide-title">📌 撮影ガイド</div>
+      <div class="guide-item"><span style="color:#1f2937">1.</span>後方（飛球線後方）から真っ直ぐ撮影</div>
+      <div class="guide-item"><span style="color:#1f2937">2.</span>クラブヘッドと地面が両方写るように</div>
+      <div class="guide-item"><span style="color:#1f2937">3.</span>明るい場所・芝の上が最適</div>
+    </div>
+  </div>
+
+  <div id="progressBox">
+    <div class="spin-icon">⟳</div>
+    <div style="font-size:15px;color:#d1fae5;margin-bottom:12px">フレームを抽出中...</div>
+    <div class="bar-wrap"><div class="bar" id="progressBar"></div></div>
+    <div class="bar-pct" id="progressPct">0%</div>
+  </div>
+
+  <div id="frameSelect">
+    <div class="frame-hint">インパクト直前のフレームをタップして選択</div>
+    <div id="thumbGrid"></div>
+    <div id="selectedPreview">
+      <div class="preview-label" id="previewLabel"></div>
+      <img id="previewImg" src="" alt="">
+    </div>
+    <div id="analyzeError" class="error-box"></div>
+    <button class="btn-primary" id="analyzeBtn" disabled onclick="analyze()">🔍 ライ角チェック開始</button>
+  </div>
+
+  <div id="resultBox">
+    <div class="result-card">
+      <div class="result-header" id="resultHeader">
+        <div class="result-sub">診断結果</div>
+        <div class="result-title" id="resultTitle"></div>
+      </div>
+      <div id="angleVisual">
+        <div class="visual-wrap">
+          <div class="ground-line"></div>
+          <div class="ground-lbl">地面</div>
+          <div class="sole-wrap" id="soleWrap">
+            <div class="sole-bar" id="soleBar">
+              <div class="dot dot-toe" id="dotToe"></div>
+              <div class="dot dot-heel" id="dotHeel"></div>
+            </div>
+          </div>
+        </div>
+        <div class="visual-labels"><span>← ヒール</span><span>トゥ →</span></div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><div class="metric-label">角度差</div><div class="metric-value" id="metricAngle"></div></div>
+        <div class="metric"><div class="metric-label">重症度</div><div class="metric-value" id="metricSeverity"></div></div>
+      </div>
+      <div class="assessment">
+        <div class="assessment-lbl">AI評価</div>
+        <div class="assessment-text" id="assessmentText"></div>
+        <div class="advice-box">
+          <div class="advice-lbl">💡 改善アドバイス</div>
+          <div class="advice-text" id="adviceText"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- DOM常設 video & canvas -->
+<video id="hiddenVideo" muted playsinline preload="metadata"
+  style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none"></video>
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+const THUMB_COUNT = 12;
+const MODEL = "claude-sonnet-4-20250514";
+let selectedFrame = null;
+let objectUrl = null;
+const video = document.getElementById('hiddenVideo');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const PROMPT = `あなたはゴルフのライ角専門家です。
+この画像はゴルフスイング動画から抽出したフレームです（後方・飛球線後方から撮影）。
+クラブヘッドのソール（底面）と地面のラインを検出し、角度差を分析してください。
+必ず以下のJSONのみを返してください（コードブロック不要）：
+{"detected":true,"angle_diff":数値,"status":"flat|toe_up|heel_up","severity":"perfect|slight|moderate|severe","assessment":"日本語2〜3文","recommendation":"日本語1〜2文"}`;
+
+// Upload
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('click', () => document.getElementById('fileInput').click());
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
+document.getElementById('fileInput').addEventListener('change', e => loadFile(e.target.files[0]));
+
+function loadFile(f) {
+  if (!f || !f.type.startsWith('video/')) return;
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl = URL.createObjectURL(f);
+
+  hide('uploadSection');
+  show('progressBox');
+  hideErr('uploadError');
+
+  video.onerror = () => {
+    show('uploadSection'); hide('progressBox');
+    showErr('uploadError', `動画を読み込めませんでした（エラー: ${video.error ? video.error.code : '不明'}）。MP4(H.264)形式を推奨します。`);
+    showReset();
+  };
+
+  video.onloadedmetadata = () => startExtract();
+
+  video.src = objectUrl;
+  video.load();
+}
+
+async function startExtract() {
+  const duration = video.duration;
+  document.getElementById('thumbGrid').innerHTML = '';
+
+  for (let i = 0; i < THUMB_COUNT; i++) {
+    const t = i === 0 ? 0 : i === THUMB_COUNT - 1 ? duration - 0.01 : (duration / (THUMB_COUNT - 1)) * i;
+    try {
+      const dataUrl = await seekFrame(t);
+      appendThumb(dataUrl, t);
+    } catch(e) {
+      console.warn('frame skip', t, e);
+    }
+    const pct = Math.round(((i + 1) / THUMB_COUNT) * 100);
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+  }
+
+  hide('progressBox');
+  show('frameSelect');
+  showReset();
+}
+
+function seekFrame(time) {
+  return new Promise((resolve, reject) => {
+    const tid = setTimeout(() => reject(new Error('timeout')), 5000);
+    video.onseeked = () => {
+      clearTimeout(tid);
+      video.onseeked = null;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 360;
+      ctx.drawImage(video, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    video.currentTime = time;
+  });
+}
+
+function appendThumb(dataUrl, time) {
+  const grid = document.getElementById('thumbGrid');
+  const div = document.createElement('div');
+  div.className = 'thumb';
+  div.innerHTML = `<img src="${dataUrl}"><div class="time-badge">${time.toFixed(1)}s</div><div class="check-mark">✓</div>`;
+  div.addEventListener('click', () => pickFrame(div, dataUrl, time));
+  grid.appendChild(div);
+}
+
+function pickFrame(el, dataUrl, time) {
+  document.querySelectorAll('.thumb').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedFrame = { dataUrl, time };
+  document.getElementById('selectedPreview').style.display = 'block';
+  document.getElementById('previewLabel').textContent = `選択フレーム（${time.toFixed(2)}s）`;
+  document.getElementById('previewImg').src = dataUrl;
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+async function analyze() {
+  if (!selectedFrame) return;
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⟳</span> AI解析中...';
+  hideErr('analyzeError');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 1000,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: selectedFrame.dataUrl.split(',')[1] } },
+          { type: 'text', text: PROMPT }
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content || []).map(b => b.text || '').join('');
+    const result = JSON.parse(text.replace(/```json|```/g, '').trim());
+    renderResult(result);
+  } catch(e) {
+    showErr('analyzeError', '解析エラー: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '🔍 ライ角チェック開始';
+  }
+}
+
+function renderResult(r) {
+  hide('frameSelect'); show('resultBox');
+  const col = r.status === 'flat' ? '#4ade80' : r.status === 'toe_up' ? '#fb923c' : '#60a5fa';
+  const lbl = r.status === 'flat' ? '✅ フラット（良好）' : r.status === 'toe_up' ? '⚠️ トゥ浮き' : '⚠️ ヒール浮き';
+  const sev = {perfect:'完璧',slight:'わずか',moderate:'やや大きい',severe:'要調整'}[r.severity] || r.severity;
+  document.getElementById('resultHeader').style.background = `linear-gradient(135deg,${col}18,transparent)`;
+  document.getElementById('resultTitle').textContent = lbl;
+  document.getElementById('resultTitle').style.color = col;
+  const rot = r.status === 'toe_up' ? Math.min(Math.abs(r.angle_diff),15) : r.status === 'heel_up' ? -Math.min(Math.abs(r.angle_diff),15) : 0;
+  document.getElementById('soleWrap').style.transform = `translateX(-50%) rotate(${rot}deg)`;
+  document.getElementById('soleBar').style.background = `linear-gradient(90deg,#111827,${col})`;
+  document.getElementById('soleBar').style.boxShadow = `0 0 14px ${col}55`;
+  document.getElementById('dotToe').style.cssText  = `background:${r.status==='toe_up'?'#fb923c':'#1f2937'};box-shadow:${r.status==='toe_up'?'0 0 8px #fb923c':'none'}`;
+  document.getElementById('dotHeel').style.cssText = `background:${r.status==='heel_up'?'#60a5fa':'#1f2937'};box-shadow:${r.status==='heel_up'?'0 0 8px #60a5fa':'none'}`;
+  document.getElementById('metricAngle').textContent = (r.angle_diff > 0 ? '+' : '') + r.angle_diff + '°';
+  document.getElementById('metricSeverity').textContent = sev;
+  document.getElementById('assessmentText').textContent = r.assessment;
+  document.getElementById('adviceText').textContent = r.recommendation;
+}
+
+function doReset() {
+  selectedFrame = null;
+  if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+  video.src = '';
+  show('uploadSection'); hide('progressBox'); hide('frameSelect'); hide('resultBox');
+  hideErr('uploadError'); hideErr('analyzeError');
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('progressPct').textContent = '0%';
+  document.getElementById('thumbGrid').innerHTML = '';
+  document.getElementById('selectedPreview').style.display = 'none';
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true; btn.innerHTML = '🔍 ライ角チェック開始';
+}
+
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function showReset() { document.getElementById('resetBtn').style.display = 'block'; }
+function showErr(id, msg) { const el = document.getElementById(id); el.textContent = '❌ ' + msg; el.style.display = 'block'; }
+function hideErr(id) { document.getElementById(id).style.display = 'none'; }
+</script>
+</body>
+</html>

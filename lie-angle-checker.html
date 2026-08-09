@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ライ角チェッカー">
+<meta name="theme-color" content="#050d05">
+<link id="appleIcon" rel="apple-touch-icon">
+<link id="manifestLink" rel="manifest">
+<title>ライ角チェッカー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { min-height: 100vh; background: linear-gradient(160deg,#050d05 0%,#0a160a 60%,#080d12 100%); font-family:'Noto Sans JP','Helvetica Neue',sans-serif; color:#e5e7eb; }
+header { padding:16px 20px; border-bottom:1px solid #111f11; background:rgba(0,0,0,0.4); backdrop-filter:blur(12px); display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:10; }
+.logo { width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg,#14532d,#4ade80); display:flex; align-items:center; justify-content:center; font-size:17px; box-shadow:0 0 14px #4ade8033; flex-shrink:0; }
+.title { font-size:17px; font-weight:700; color:#f0fdf4; }
+.subtitle { font-size:10px; color:#4ade80; letter-spacing:.08em; }
+#resetBtn { margin-left:auto; background:transparent; border:1px solid #1a2a1a; border-radius:6px; padding:6px 12px; color:#4b5563; font-size:12px; cursor:pointer; display:none; flex-shrink:0; }
+main { max-width:500px; margin:0 auto; padding:20px 16px 60px; }
+
+#uploadZone { border:2px dashed #1a2e1a; border-radius:14px; padding:44px 20px; text-align:center; cursor:pointer; background:rgba(255,255,255,0.015); transition:all .2s; margin-bottom:20px; }
+#uploadZone.drag { border-color:#4ade80; background:rgba(74,222,128,0.04); }
+.upload-icon { font-size:40px; margin-bottom:12px; }
+.upload-label { font-size:15px; font-weight:600; color:#d1fae5; margin-bottom:6px; }
+.upload-sub { font-size:12px; color:#374151; }
+.guide { background:rgba(255,255,255,0.02); border:1px solid #111f11; border-radius:12px; padding:16px 18px; }
+.guide-title { font-size:12px; color:#4ade80; font-weight:600; margin-bottom:10px; }
+.guide-item { font-size:13px; color:#6b7280; padding:4px 0; display:flex; gap:8px; }
+
+#playerSection { display:none; }
+.player-hint { font-size:13px; color:#9ca3af; margin-bottom:12px; text-align:center; line-height:1.6; }
+#videoWrap { background:#000; border-radius:12px 12px 0 0; overflow:hidden; border:1px solid #111f11; border-bottom:none; }
+#videoEl { width:100%; display:block; max-height:280px; object-fit:contain; }
+#playerControls { background:#0a0f0a; border:1px solid #111f11; border-top:none; border-radius:0 0 12px 12px; padding:14px 16px; margin-bottom:16px; }
+#seekSlider { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px; background:#1f2937; outline:none; cursor:pointer; margin-bottom:6px; }
+#seekSlider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#4ade80; cursor:pointer; box-shadow:0 0 8px #4ade8066; }
+.time-row { display:flex; justify-content:space-between; font-size:11px; color:#4b5563; margin-bottom:12px; }
+.time-current { color:#4ade80; font-weight:600; }
+.step-btns { display:flex; gap:8px; margin-bottom:14px; }
+.step-btn { flex:1; padding:9px 4px; background:#111f11; border:1px solid #1a2a1a; border-radius:8px; color:#9ca3af; font-size:12px; cursor:pointer; text-align:center; }
+.step-btn:active { background:#1a2a1a; color:#4ade80; }
+.btn-capture { width:100%; padding:14px; background:transparent; border:2px solid #4ade80; border-radius:12px; color:#4ade80; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px; }
+.btn-capture:active { background:rgba(74,222,128,.1); }
+
+#capturedSection { display:none; margin-bottom:16px; }
+.captured-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.captured-label { font-size:12px; color:#4ade80; font-weight:600; }
+.btn-recapture { font-size:11px; color:#4b5563; background:transparent; border:1px solid #1a2a1a; border-radius:6px; padding:4px 10px; cursor:pointer; }
+#capturedImg { width:100%; border-radius:8px; border:1px solid #1a2a1a; display:block; }
+
+.btn-primary { width:100%; padding:16px; background:linear-gradient(135deg,#14532d,#16a34a); border:none; border-radius:12px; color:#f0fdf4; font-size:16px; font-weight:700; cursor:pointer; box-shadow:0 4px 20px rgba(22,163,74,.25); transition:all .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-primary:disabled { background:#111f11; color:#374151; cursor:not-allowed; box-shadow:none; }
+
+#analyzingSection { display:none; }
+.analyzing-card { background:#0a0f0a; border:1px solid #111f11; border-radius:14px; padding:40px 20px; text-align:center; }
+.analyzing-spinner { font-size:36px; display:inline-block; animation:spin 1.5s linear infinite; margin-bottom:16px; }
+.analyzing-label { font-size:15px; color:#d1fae5; margin-bottom:6px; }
+.analyzing-sub { font-size:12px; color:#4b5563; }
+
+.error-box { background:#1c0a0a; border:1px solid #7f1d1d; border-radius:10px; padding:14px; color:#fca5a5; font-size:13px; margin-bottom:16px; display:none; }
+
+#resultBox { display:none; }
+.result-card { background:#0a0f0a; border:1px solid #111f11; border-radius:16px; overflow:hidden; }
+.result-header { padding:20px; border-bottom:1px solid #111f11; }
+.result-sub { font-size:12px; color:#4b5563; margin-bottom:4px; }
+.result-title { font-size:24px; font-weight:800; }
+#resultFrameImg { width:100%; display:block; border-bottom:1px solid #111f11; }
+#angleVisual { display:flex; flex-direction:column; align-items:center; padding:24px 0 12px; }
+.visual-wrap { position:relative; width:200px; height:80px; }
+.ground-line { position:absolute; bottom:16px; left:0; right:0; height:2px; background:#374151; }
+.ground-lbl { position:absolute; bottom:2px; right:0; font-size:10px; color:#4b5563; }
+.sole-wrap { position:absolute; bottom:18px; left:50%; transform:translateX(-50%) rotate(0deg); transform-origin:50% 100%; transition:transform .7s cubic-bezier(.34,1.56,.64,1); }
+.sole-bar { width:90px; height:10px; border-radius:2px 5px 5px 2px; position:relative; }
+.dot { position:absolute; top:50%; transform:translateY(-50%); width:10px; height:10px; border-radius:50%; background:#1f2937; }
+.dot-toe { right:-5px; } .dot-heel { left:-5px; }
+.visual-labels { display:flex; gap:24px; font-size:11px; color:#4b5563; margin-top:4px; }
+.metrics-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#111f11; border-top:1px solid #111f11; border-bottom:1px solid #111f11; }
+.metric { background:#0a0f0a; padding:14px 18px; }
+.metric-label { font-size:11px; color:#374151; margin-bottom:4px; }
+.metric-value { font-size:22px; font-weight:700; color:#e5e7eb; }
+.assessment { padding:18px 20px; }
+.assessment-lbl { font-size:11px; color:#374151; letter-spacing:.08em; margin-bottom:8px; }
+.assessment-text { font-size:14px; color:#d1d5db; line-height:1.75; margin-bottom:14px; }
+.advice-box { background:rgba(74,222,128,.05); border:1px solid rgba(74,222,128,.12); border-radius:8px; padding:12px 14px; }
+.advice-lbl { font-size:11px; color:#4ade80; margin-bottom:4px; }
+.advice-text { font-size:13px; color:#a7f3d0; line-height:1.65; }
+.disclaimer { padding:14px 20px; border-top:1px solid #111f11; font-size:11px; color:#374151; line-height:1.6; text-align:center; }
+
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes fadeOut { to { opacity:0; pointer-events:none; } }
+@keyframes logoIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+@keyframes textIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes barFill { from { width:0%; } to { width:100%; } }
+#splash { position:fixed; inset:0; z-index:100; background:linear-gradient(160deg,#020802 0%,#060f06 60%,#04080d 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+#splash.hide { animation:fadeOut 0.6s ease forwards; }
+.splash-logo { width:80px; height:80px; border-radius:20px; background:linear-gradient(135deg,#14532d,#4ade80); display:flex; align-items:center; justify-content:center; font-size:40px; box-shadow:0 0 40px #4ade8044; animation:logoIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both; margin-bottom:24px; }
+.splash-title { font-size:26px; font-weight:800; color:#f0fdf4; animation:textIn 0.5s ease 0.5s both; margin-bottom:6px; }
+.splash-subtitle { font-size:12px; color:#4ade80; letter-spacing:0.14em; animation:textIn 0.5s ease 0.65s both; margin-bottom:48px; }
+.splash-bar-wrap { width:140px; height:2px; background:#1a2a1a; border-radius:999px; overflow:hidden; animation:textIn 0.5s ease 0.8s both; }
+.splash-bar { height:100%; border-radius:999px; background:linear-gradient(90deg,#14532d,#4ade80); animation:barFill 2.0s ease 0.9s both; }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-logo">⛳</div>
+  <div class="splash-title">ライ角チェッカー</div>
+  <div class="splash-subtitle">LIE ANGLE CHECKER</div>
+  <div style="margin-bottom:24px;font-size:12px;color:#4b5563;letter-spacing:0.2em;animation:textIn 0.5s ease 0.8s both;opacity:0;font-weight:600">CREATED BY YM</div>
+  <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+</div>
+
+<header>
+  <div class="logo">⛳</div>
+  <div><div class="title">ライ角チェッカー</div><div class="subtitle">LIE ANGLE CHECKER</div></div>
+  <button id="resetBtn" onclick="doReset()">やり直す</button>
+</header>
+
+<main>
+  <div id="uploadSection">
+    <div id="uploadZone">
+      <input type="file" id="fileInput" accept="video/*" style="display:none">
+      <div class="upload-icon">🎥</div>
+      <div class="upload-label">動画をアップロード</div>
+      <div class="upload-sub">MP4 / MOV など</div>
+    </div>
+    <div id="uploadError" class="error-box"></div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;color:#4b5563;margin-bottom:6px;">🔑 Gemini API Key</div>
+      <input id="apiKeyInput" type="password" placeholder="AIza..."
+        style="width:100%;background:#0a0f0a;border:1px solid #1a2a1a;border-radius:8px;padding:10px 12px;color:#e5e7eb;font-size:13px;outline:none;"
+        oninput="localStorage.setItem('lac_api_key',this.value)">
+      <div style="font-size:11px;color:#374151;margin-top:6px;">
+        APIキーをお持ちでない方 →
+        <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4ade80;text-decoration:none;">aistudio.google.com で無料取得 ↗</a>
+      </div>
+    </div>
+    <div class="guide">
+      <div class="guide-title">📌 撮影ガイド</div>
+      <div class="guide-item"><span style="color:#1f2937">1.</span>後方（飛球線後方）から真っ直ぐ撮影</div>
+      <div class="guide-item"><span style="color:#1f2937">2.</span>クラブヘッドと地面が両方写るように</div>
+      <div class="guide-item"><span style="color:#1f2937">3.</span>明るい場所・芝の上が最適</div>
+    </div>
+  </div>
+
+  <div id="playerSection">
+    <p class="player-hint">インパクト直前のフレームを選択して<br>📸 ボタンを押してください</p>
+    <div id="videoWrap"><video id="videoEl" muted playsinline></video></div>
+    <div id="playerControls">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <button id="playBtn" onclick="togglePlay()"
+          style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#14532d,#4ade80);border:none;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">▶</button>
+        <input type="range" id="seekSlider" min="0" max="100" step="0.01" value="0" style="flex:1;">
+      </div>
+      <div class="time-row">
+        <span>0:00</span>
+        <span class="time-current" id="timeCurrent">0.00s</span>
+        <span id="timeDuration">0.00s</span>
+      </div>
+      <div class="step-btns">
+        <div class="step-btn" onclick="stepFrame(-5)">⏮ -5f</div>
+        <div class="step-btn" onclick="stepFrame(-1)">◀ -1f</div>
+        <div class="step-btn" onclick="stepFrame(1)">+1f ▶</div>
+        <div class="step-btn" onclick="stepFrame(5)">+5f ⏭</div>
+      </div>
+      <button class="btn-capture" onclick="captureFrame()">📸 このフレームで計測</button>
+    </div>
+
+    <div id="capturedSection">
+      <div class="captured-header">
+        <span class="captured-label">✅ キャプチャ済み</span>
+        <button class="btn-recapture" onclick="recapture()">選び直す</button>
+      </div>
+      <img id="capturedImg" src="" alt="">
+    </div>
+
+    <div id="analyzeError" class="error-box"></div>
+    <button class="btn-primary" id="analyzeBtn" disabled onclick="runAnalyze()">🔍 ライ角チェック開始</button>
+  </div>
+
+  <div id="analyzingSection">
+    <div class="analyzing-card">
+      <div class="analyzing-spinner">⟳</div>
+      <div class="analyzing-label">AIが解析中...</div>
+      <div class="analyzing-sub" id="analyzing-sub">クラブヘッド周辺を3回解析しています</div>
+    </div>
+  </div>
+
+  <div id="resultBox">
+    <div class="result-card">
+      <div class="result-header" id="resultHeader">
+        <div class="result-sub">診断結果</div>
+        <div class="result-title" id="resultTitle"></div>
+      </div>
+      <img id="resultFrameImg" src="" alt="">
+      <div id="angleVisual">
+        <div class="visual-wrap">
+          <div class="ground-line"></div>
+          <div class="ground-lbl">地面</div>
+          <div class="sole-wrap" id="soleWrap">
+            <div class="sole-bar" id="soleBar">
+              <div class="dot dot-toe" id="dotToe"></div>
+              <div class="dot dot-heel" id="dotHeel"></div>
+            </div>
+          </div>
+        </div>
+        <div class="visual-labels"><span>← ヒール</span><span>トゥ →</span></div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><div class="metric-label">角度差</div><div class="metric-value" id="metricAngle"></div></div>
+        <div class="metric"><div class="metric-label">重症度</div><div class="metric-value" id="metricSeverity"></div></div>
+      </div>
+      <div class="assessment">
+        <div class="assessment-lbl">AI評価</div>
+        <div class="assessment-text" id="assessmentText"></div>
+        <div class="advice-box">
+          <div class="advice-lbl">💡 改善アドバイス</div>
+          <div class="advice-text" id="adviceText"></div>
+        </div>
+      </div>
+      <div class="disclaimer">※ この結果は目安です。精密なフィッティングは専門家による計測をお勧めします。</div>
+    </div>
+  </div>
+</main>
+
+<canvas id="workCanvas" style="display:none"></canvas>
+
+<script>
+let objectUrl = null;
+let capturedDataUrl = null;
+let croppedFrames = []; // array of cropped dataUrls: [prev, current, next]
+let fps = 30;
+let isSeeking = false;
+
+const videoEl = document.getElementById('videoEl');
+const slider  = document.getElementById('seekSlider');
+const workCvs = document.getElementById('workCanvas');
+const workCtx = workCvs.getContext('2d');
+
+const PROMPT = `あなたはゴルフクラブフィッティングの専門家です。
+この画像はゴルフスイングを後方から撮影したフレームです。
+
+【最初に確認すること】
+- クラブヘッドのソール（底面）が地面に接触または極めて近い状態か？
+- ボールがすでに空中に飛んでいる（インパクト後）ではないか？
+上記が満たされない場合は detected:false を返す。
+
+【分析手順】（detected:true の場合）
+1. 地面ライン（芝・マットの水平ライン）を特定する
+2. クラブヘッドのソール底面のラインを特定する
+3. ヒール側とトゥ側の浮き具合を判定する
+   - トゥ側が浮いている → toe_up（ライ角がアップライトすぎ）
+   - ヒール側が浮いている → heel_up（ライ角がフラットすぎ）
+   - ソール全体が地面と平行 → flat
+4. ソールと地面の角度差を推定する（1°単位）
+
+【severity の基準】
+perfect=0〜1°、slight=2〜3°、moderate=4〜6°、severe=7°以上
+
+【重要】
+- angle_diff：トゥ浮きを正の値、ヒール浮きを負の値
+- 不鮮明・判断できない場合は detected:false
+
+必ずJSONのみ返してください（コードブロック不要）：
+{"detected":true,"angle_diff":数値,"status":"flat|toe_up|heel_up","severity":"perfect|slight|moderate|severe","assessment":"日本語2〜3文の具体的な評価","recommendation":"日本語1〜2文の改善アドバイス"}`;
+
+// PWA
+(function(){
+  const size=512,c=document.createElement('canvas');
+  c.width=c.height=size;
+  const cx=c.getContext('2d');
+  const bg=cx.createLinearGradient(0,0,size,size);
+  bg.addColorStop(0,'#0a1f0a');bg.addColorStop(1,'#020802');
+  const r=size*0.18;
+  cx.beginPath();cx.moveTo(r,0);cx.lineTo(size-r,0);cx.arcTo(size,0,size,r,r);cx.lineTo(size,size-r);cx.arcTo(size,size,size-r,size,r);cx.lineTo(r,size);cx.arcTo(0,size,0,size-r,r);cx.lineTo(0,r);cx.arcTo(0,0,r,0,r);cx.closePath();
+  cx.fillStyle=bg;cx.fill();
+  const glow=cx.createRadialGradient(size*.5,size*.42,0,size*.5,size*.42,size*.38);
+  glow.addColorStop(0,'rgba(74,222,128,0.18)');glow.addColorStop(1,'rgba(74,222,128,0)');
+  cx.fillStyle=glow;cx.fillRect(0,0,size,size);
+  cx.beginPath();cx.arc(size*.5,size*.44,size*.3,Math.PI*1.1,Math.PI*1.9);
+  cx.strokeStyle='#4ade80';cx.lineWidth=size*.022;cx.lineCap='round';cx.stroke();
+  cx.fillStyle='#ffffff';cx.font=`900 ${size*.28}px 'Helvetica Neue',Arial,sans-serif`;
+  cx.textAlign='center';cx.textBaseline='middle';cx.fillText('LAC',size*.5,size*.44);
+  cx.beginPath();cx.moveTo(size*.28,size*.645);cx.lineTo(size*.72,size*.645);
+  cx.strokeStyle='rgba(74,222,128,0.4)';cx.lineWidth=size*.005;cx.stroke();
+  cx.fillStyle='#4ade80';cx.font=`600 ${size*.068}px 'Helvetica Neue',Arial,sans-serif`;
+  cx.fillText('LIE ANGLE',size*.5,size*.75);
+  cx.fillStyle='rgba(255,255,255,0.5)';cx.font=`${size*.052}px 'Helvetica Neue',Arial,sans-serif`;
+  cx.fillText('CHECKER',size*.5,size*.84);
+  const iconUrl=c.toDataURL('image/png');
+  document.getElementById('appleIcon').href=iconUrl;
+  const manifest={name:'ライ角チェッカー',short_name:'ライ角チェッカー',start_url:'./',display:'standalone',background_color:'#050d05',theme_color:'#050d05',icons:[{src:iconUrl,sizes:'512x512',type:'image/png'}]};
+  document.getElementById('manifestLink').href=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'}));
+})();
+
+setTimeout(()=>{const s=document.getElementById('splash');s.classList.add('hide');setTimeout(()=>s.remove(),600);},3200);
+
+const savedKey=localStorage.getItem('lac_api_key');
+if(savedKey) document.getElementById('apiKeyInput').value=savedKey;
+
+// Upload
+const zone=document.getElementById('uploadZone');
+zone.addEventListener('click',()=>document.getElementById('fileInput').click());
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');loadFile(e.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change',e=>loadFile(e.target.files[0]));
+
+function loadFile(f){
+  if(!f||!f.type.startsWith('video/')) return;
+  if(objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl=URL.createObjectURL(f);
+  videoEl.onerror=()=>showErr('uploadError','動画を読み込めませんでした。MP4形式を推奨します。');
+  videoEl.onloadedmetadata=()=>{
+    slider.max=videoEl.duration;
+    slider.step=1/fps;
+    document.getElementById('timeDuration').textContent=fmt(videoEl.duration);
+    hide('uploadSection');show('playerSection');showReset();
+    videoEl.currentTime=0;
+  };
+  videoEl.src=objectUrl;
+  videoEl.load();
+}
+
+function togglePlay(){
+  if(videoEl.paused){videoEl.play();document.getElementById('playBtn').textContent='⏸';}
+  else{videoEl.pause();document.getElementById('playBtn').textContent='▶';}
+}
+videoEl.addEventListener('ended',()=>{document.getElementById('playBtn').textContent='▶';});
+slider.addEventListener('mousedown',()=>{isSeeking=true;videoEl.pause();document.getElementById('playBtn').textContent='▶';});
+slider.addEventListener('touchstart',()=>{isSeeking=true;videoEl.pause();document.getElementById('playBtn').textContent='▶';},{passive:true});
+slider.addEventListener('mouseup',()=>{isSeeking=false;});
+slider.addEventListener('touchend',()=>{isSeeking=false;});
+slider.addEventListener('input',()=>{videoEl.currentTime=parseFloat(slider.value);});
+videoEl.addEventListener('timeupdate',()=>{
+  if(!isSeeking) slider.value=videoEl.currentTime;
+  document.getElementById('timeCurrent').textContent=fmt(videoEl.currentTime);
+});
+
+function stepFrame(f){
+  const t=Math.max(0,Math.min(videoEl.duration,videoEl.currentTime+f/fps));
+  videoEl.currentTime=t;slider.value=t;
+}
+
+function cropFrame(){
+  const vw=videoEl.videoWidth||640,vh=videoEl.videoHeight||360;
+  const cropX=Math.floor(vw*0.1),cropY=Math.floor(vh*0.45);
+  const cropW=Math.floor(vw*0.8),cropH=Math.floor(vh*0.55);
+  workCvs.width=cropW;workCvs.height=cropH;
+  workCtx.drawImage(videoEl,cropX,cropY,cropW,cropH,0,0,cropW,cropH);
+  return workCvs.toDataURL('image/jpeg',0.95);
+}
+
+function seekTo(t){
+  return new Promise(res=>{
+    const tid=setTimeout(res,3000);
+    videoEl.onseeked=()=>{clearTimeout(tid);videoEl.onseeked=null;res();};
+    videoEl.currentTime=t;
+  });
+}
+
+async function captureFrame(){
+  const vw=videoEl.videoWidth||640,vh=videoEl.videoHeight||360;
+  const currentT=videoEl.currentTime;
+
+  // Full frame for display
+  workCvs.width=vw;workCvs.height=vh;
+  workCtx.drawImage(videoEl,0,0,vw,vh);
+  capturedDataUrl=workCvs.toDataURL('image/jpeg',0.95);
+
+  // Crop current frame
+  const currentCrop=cropFrame();
+
+  // Seek to prev frame (-1f)
+  const prevT=Math.max(0,currentT-1/fps);
+  await seekTo(prevT);
+  const prevCrop=cropFrame();
+
+  // Seek to next frame (+1f)
+  const nextT=Math.min(videoEl.duration,currentT+1/fps);
+  await seekTo(nextT);
+  const nextCrop=cropFrame();
+
+  // Restore current frame
+  await seekTo(currentT);
+
+  croppedFrames=[prevCrop,currentCrop,nextCrop];
+
+  document.getElementById('capturedImg').src=capturedDataUrl;
+  show('capturedSection');
+  document.getElementById('analyzeBtn').disabled=false;
+  hideErr('analyzeError');
+  document.getElementById('capturedSection').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function recapture(){
+  capturedDataUrl=null;croppedFrames=[];
+  hide('capturedSection');
+  document.getElementById('analyzeBtn').disabled=true;
+}
+
+async function callGemini(apiKey, dataUrl){
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      contents:[{parts:[
+        {inline_data:{mime_type:'image/jpeg',data:dataUrl.split(',')[1]}},
+        {text:PROMPT}
+      ]}],
+      generationConfig:{temperature:0.1}
+    })
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message);
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+async function runAnalyze(){
+  if(!capturedDataUrl) return;
+  const apiKey=document.getElementById('apiKeyInput').value.trim();
+  if(!apiKey){showErr('analyzeError','APIキーを入力してください');return;}
+
+  hide('playerSection');show('analyzingSection');hideErr('analyzeError');
+
+  try{
+    // Send prev/current/next frames (3 frames × 1 call each = 3 calls)
+    const frames = croppedFrames.length===3 ? croppedFrames : [capturedDataUrl];
+    const results=[];
+
+    for(let i=0;i<frames.length;i++){
+      const label=['前のフレーム','選択フレーム','次のフレーム'][i]||`フレーム${i+1}`;
+      document.getElementById('analyzing-sub').textContent=`${label}を解析中 (${i+1}/${frames.length})...`;
+      try{
+        const r=await callGemini(apiKey,frames[i]);
+        if(r.detected) results.push(r);
+      }catch(e){ /* skip failed frame */ }
+    }
+
+    if(results.length===0){
+      hide('analyzingSection');show('playerSection');
+      showErr('analyzeError','ソールまたは地面を検出できませんでした。インパクト直前のフレームを選び直してください。');
+      return;
+    }
+
+    // Average angle_diff
+    const avgAngle=results.reduce((s,r)=>s+r.angle_diff,0)/results.length;
+    const roundedAngle=Math.round(avgAngle*10)/10;
+
+    // Majority vote for status
+    const statusCount={flat:0,toe_up:0,heel_up:0};
+    results.forEach(r=>statusCount[r.status]++);
+    const status=Object.entries(statusCount).sort((a,b)=>b[1]-a[1])[0][0];
+
+    // Majority vote for severity
+    const sevCount={perfect:0,slight:0,moderate:0,severe:0};
+    results.forEach(r=>sevCount[r.severity]++);
+    const severity=Object.entries(sevCount).sort((a,b)=>b[1]-a[1])[0][0];
+
+    // Use assessment from result closest to average
+    const best=results.reduce((prev,curr)=>
+      Math.abs(curr.angle_diff-avgAngle)<Math.abs(prev.angle_diff-avgAngle)?curr:prev
+    );
+
+    hide('analyzingSection');
+    renderResult({angle_diff:roundedAngle,status,severity,assessment:best.assessment,recommendation:best.recommendation});
+
+  }catch(e){
+    hide('analyzingSection');show('playerSection');
+    showErr('analyzeError','解析エラー: '+e.message);
+  }
+}
+
+function renderResult(r){
+  show('resultBox');
+  const col=r.status==='flat'?'#4ade80':r.status==='toe_up'?'#fb923c':'#60a5fa';
+  const lbl=r.status==='flat'?'✅ フラット（良好）':r.status==='toe_up'?'⚠️ トゥ浮き':'⚠️ ヒール浮き';
+  const sev={perfect:'完璧',slight:'わずか',moderate:'やや大きい',severe:'要調整'}[r.severity]||r.severity;
+
+  document.getElementById('resultHeader').style.background=`linear-gradient(135deg,${col}18,transparent)`;
+  document.getElementById('resultTitle').textContent=lbl;
+  document.getElementById('resultTitle').style.color=col;
+  document.getElementById('resultFrameImg').src=capturedDataUrl;
+
+  const rot=r.status==='toe_up'?-Math.min(Math.abs(r.angle_diff),15):r.status==='heel_up'?Math.min(Math.abs(r.angle_diff),15):0;
+  document.getElementById('soleWrap').style.transform=`translateX(-50%) rotate(${rot}deg)`;
+  document.getElementById('soleBar').style.background=`linear-gradient(90deg,#111827,${col})`;
+  document.getElementById('soleBar').style.boxShadow=`0 0 14px ${col}55`;
+  document.getElementById('dotToe').style.cssText=`background:${r.status==='toe_up'?'#fb923c':'#1f2937'};box-shadow:${r.status==='toe_up'?'0 0 8px #fb923c':'none'}`;
+  document.getElementById('dotHeel').style.cssText=`background:${r.status==='heel_up'?'#60a5fa':'#1f2937'};box-shadow:${r.status==='heel_up'?'0 0 8px #60a5fa':'none'}`;
+  document.getElementById('metricAngle').textContent=(r.angle_diff>0?'+':'')+r.angle_diff+'°';
+  document.getElementById('metricSeverity').textContent=sev;
+  document.getElementById('assessmentText').textContent=r.assessment;
+  document.getElementById('adviceText').textContent=r.recommendation;
+}
+
+function doReset(){
+  capturedDataUrl=null;
+  if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}
+  videoEl.src='';
+  show('uploadSection');
+  ['playerSection','analyzingSection','resultBox'].forEach(hide);
+  hide('capturedSection');
+  hideErr('uploadError');hideErr('analyzeError');
+  document.getElementById('resetBtn').style.display='none';
+  document.getElementById('fileInput').value='';
+  document.getElementById('playBtn').textContent='▶';
+  document.getElementById('analyzeBtn').disabled=true;
+  slider.value=0;
+}
+
+function fmt(s){return isNaN(s)?'0.00s':s.toFixed(2)+'s';}
+function show(id){document.getElementById(id).style.display='block';}
+function hide(id){document.getElementById(id).style.display='none';}
+function showReset(){document.getElementById('resetBtn').style.display='block';}
+function showErr(id,msg){const el=document.getElementById(id);el.textContent='❌ '+msg;el.style.display='block';}
+function hideErr(id){document.getElementById(id).style.display='none';}
+</script>
+</body>
+</html>
